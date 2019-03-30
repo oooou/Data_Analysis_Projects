@@ -1,0 +1,541 @@
+白葡萄酒探索性数据分析
+========================================================
+白葡萄酒数据集包含4,898 种⽩葡萄酒，及 11个量化每种酒化学成分的变量。⾄少 3 名葡萄酒专家对每种酒的质量进⾏了评分，分数在 0（⾮常差）和 10（⾮常好）之间。在本项目中，我将借助 R 和 ggplot2 对该数据集进行探索性数据分析，寻找一个感兴趣的变量，并对该变量与其他变量之间的关系进行探索。
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, packages}
+# 加载你最终使用的所有组件
+# 在这个代码块的分析中。
+
+# 注意，在这个代码块中，将参数 "echo" 设为假。
+# This prevents the code from displaying in the knitted HTML output.这可以避免代码混入 HTML 输出显示。
+# 应当在文件中，对所有代码块设为 echo=FALSE 。
+
+library(tidyverse)
+library(GGally)
+```
+
+```{r echo=FALSE, Load_the_Data}
+# 加载数据
+df <- read.csv("wineQualityWhites.csv")[, -1]
+df$quality <- factor(df$quality)
+head(df)
+str(df)
+table(df$quality)
+
+```
+
+可以看到该数据集包含12个变量的4898组观察值。12个变量中包含一个分类变量（quality），其他都是连续数值变量。quality 变量是代表葡萄酒的评分，可作为有序因子来处理。
+
+# 单变量绘图选择
+在这一部分，我将绘制各连续变量和分类变量的分布，观察其中是否存在值得注意的模式或者异常点。
+
+```{r echo=FALSE}
+# 绘制分布
+ggplot(aes(x = quality), data = df) +
+  geom_bar() +
+  ggtitle("Distribution of quality")
+
+# 统计摘要
+table(df$quality)
+```
+
+葡萄酒得分最低为3分，最高为9分，其中分以5-7分居多，少数葡萄酒得到较低的3-4分和较高的8-9分。得分分布从中间向两边呈急剧减少的趋势。
+
+```{r echo=FALSE}
+# 绘制分布
+ggplot(aes(x = fixed.acidity), data = df) +
+  geom_histogram(binwidth = 0.1) +
+  scale_x_continuous(breaks = seq(0, 15, 1)) +
+  ggtitle("Distribution of fixed.acidity") +
+  xlab("fixed.acidity (g / dm^3)")
+
+# 统计摘要
+summary(df$fixed.acidity)
+
+# 异常值
+subset(df, df$fixed.acidity > 14 )
+
+
+```
+
+非挥发性酸含量最低为3.8，最高为14.2。大多数葡萄酒的非挥发性酸含量在6-8g/dm^3，另外分布右边还有个大于14g/dm^3的异常值。
+
+```{r echo=FALSE}
+# 绘制分布
+ggplot(aes(x = volatile.acidity), data = df) +
+  geom_histogram(binwidth = 0.01)+
+  ggtitle("Distribution of volatile.acidity") +
+  xlab("volatile.acidity (g / dm^3)")
+
+# 取子集
+subset(df, volatile.acidity > 0.9)
+# 统计摘要
+summary(df$volatile.acidity)
+```
+
+挥发性酸最小值为0.08，最大值为1.10。大多数葡萄酒的挥发性酸含量在0.15-0.4。其分布稍右偏。有12个大于0.9的记录。
+
+```{r echo=FALSE}
+# 绘制分布
+ggplot(aes(x = citric.acid), data = df) +
+  geom_histogram(binwidth = 0.01)+
+  ggtitle("Distribution of citric.acid") +
+  xlab("citric.acid (g / dm^3)")
+
+# 取子集
+subset(df, citric.acid > 1.0)
+
+# 统计摘要
+summary(df$citric.acid)
+```
+
+柠檬酸的最小值为0， 最大值为1.66。大多数葡萄酒的柠檬酸含量在0.25-0.75。有两个柠檬酸含量高于1.0的记录，这两个记录的得分为6分。另外在0.49的位置还有一个峰值（这是为什么呢）。
+
+```{r echo=FALSE}
+# 绘制分布
+ggplot(aes(x = residual.sugar), data = df) +
+  geom_histogram(binwidth = 0.1)+
+  ggtitle("Distribution of residual.sugar") +
+  xlab("residual.sugar (g / dm^3)")
+
+# log转换
+ggplot(aes(x = residual.sugar), data = df) +
+  geom_histogram(binwidth = 0.05) +
+  scale_x_log10() +
+  ggtitle("Distribution of residual.sugar") +
+  xlab("residual.sugar (g / dm^3)")
+
+
+# 统计摘要
+summary(df$residual.sugar)
+
+```
+
+残糖量的最小值为0.6， 最大值为65.8。在第一张图中可以看到残糖量的分布有明显的长尾，高于60的点存在异常值。在此我们将残糖量进行 log 转换，可以观察到除了在2g/dm^3左右较高之外，在5-20之间也有较广泛的分布，具有明显的双峰性。
+
+```{r echo=FALSE}
+# 绘制分布
+ggplot(aes(x = chlorides), data = df) +
+  geom_histogram(binwidth = 0.001) +
+  ggtitle("Distribution of chlorides") +
+  xlab("chlorides (g / dm^3)")
+
+# 放大主体
+ggplot(aes(x = chlorides), data = df) +
+  geom_histogram(binwidth = 0.001) +
+  coord_cartesian(xlim = c(0, 0.1)) +
+  ggtitle("Distribution of chlorides") +
+  xlab("chlorides (g / dm^3)")
+
+# 统计摘要
+summary(df$chlorides)
+```
+
+氯化物含量的最小值为0.009，最大值为0.346。数据主要集中在0.03-0.06。在第一张图中看到，氯化物含量有一些较离散的长尾，当我们把分布主体放大时，可以看到氯化物的分布主体近似正态分布。
+
+```{r echo=FALSE}
+# 绘制分布
+ggplot(aes(x = free.sulfur.dioxide), data = df) +
+  geom_histogram(binwidth = 1) +
+  ggtitle("Distribution of free.sulfur.dioxide") +
+  xlab("free.sulfur.dioxide (mg / dm^3)")
+
+# 放大主体
+ggplot(aes(x = free.sulfur.dioxide), data = subset(df, free.sulfur.dioxide < 100)) +
+  geom_histogram(binwidth = 1) +
+  ggtitle("Distribution of free.sulfur.dioxide") +
+  xlab("free.sulfur.dioxide (mg / dm^3)")
+
+# 统计摘要
+summary(df$free.sulfur.dioxide)
+```
+
+游离$SO_2$含量最小值为2，最大值为289，数据分布有少数较离散的长尾。聚焦到主体部分，发现游离$SO_2$含量也类似正态分布。
+
+```{r echo=FALSE}
+# 绘制分布
+ggplot(aes(x = total.sulfur.dioxide), data = df) +
+  geom_histogram(binwidth = 5) +
+  ggtitle("Distribution of total.sulfur.dioxide") +
+  xlab("total.sulfur.dioxide (mg / dm^3)")
+
+# 放大主体  
+ggplot(aes(x = total.sulfur.dioxide), data = df) +
+  geom_histogram(binwidth = 1) +
+  coord_cartesian(xlim = c(0, 300)) +
+  ggtitle("Distribution of total.sulfur.dioxide")+
+  xlab("total.sulfur.dioxide (mg / dm^3)")
+
+# 统计摘要
+summary(df$total.sulfur.dioxide)
+```
+
+总$SO_2$含量最小值为9，最大值为440，也有少数较离散的长尾。聚焦到主体部分，可看到其稍微右偏。
+
+```{r echo=FALSE}
+# 绘制分布
+ggplot(aes(x = density), data = df) +
+  geom_histogram(binwidth = 0.001) +
+  ggtitle("Distribution of density") +
+  xlab("density (g / cm^3)")
+
+# 放大主体
+ggplot(aes(x = density), data = df) +
+  geom_histogram(binwidth = 0.0005) +
+  coord_cartesian(xlim = c(0.98, 1.01)) +
+  ggtitle("Distribution of density") +
+  xlab("density (g / cm^3)")
+
+# 统计摘要
+summary(df$density)
+```
+
+葡萄酒的密度最小值为0.9871，最大值为1.0390，除了有少数异常值外，多数是比较集中的。大多数数据集中在0.99-1.00g/cm^3，比水的密度稍低些。第二张图聚焦在主体部分。
+
+```{r echo=FALSE}
+# 绘制分布
+ggplot(aes(x = pH), data = df) +
+  geom_histogram(binwidth = 0.01) +
+  ggtitle("Distribution of pH") 
+
+# 统计摘要
+summary(df$pH)
+```
+
+pH值的最小值为2.720，最大值为3.820，大多数葡萄酒的酸度为3-3.3，和苹果、橘子的酸度差不多。
+
+```{r echo=FALSE}
+# 绘制分布
+ggplot(aes(x = sulphates), data = df) +
+  geom_histogram(binwidth = 0.01) +
+  ggtitle("Distribution of sulphates") +
+  xlab("sulphates (g / dm^3)")
+  
+
+# 统计摘要
+summary(df$sulphates)
+```
+
+硫酸盐最小值为0.22，最大值为1.08，整体分布稍右偏。
+
+```{r echo=FALSE}
+# 绘制分布
+ggplot(aes(x = alcohol), data = df) +
+  geom_histogram(aes(y = ..density..), binwidth = 0.1) +
+  scale_x_continuous(breaks = seq(0, 15, 1)) +
+  geom_density(adjust = 1/2) +
+  ggtitle("Distribution of alcohol") +
+  xlab("alcohol (% by volume)")
+
+# 统计摘要
+summary(df$alcohol)
+
+```
+
+酒精含量最小值为8，最大值为14.2，其分布较为平均，有明显的多峰性。
+
+
+
+
+# 单变量分析
+
+### 你的数据集结构是什么？
+该数据集包含1个分类变量和11个连续变量。共有4898组观察值。
+
+### 你的数据集内感兴趣的主要特性有哪些？
+最感兴趣的特征在于 quality ，并且我对哪些变量会影响 quality 很感兴趣？
+
+### 你认为数据集内哪些其他特征可以帮助你探索兴趣特点？
+直观上看，挥发性/非挥发性酸、柠檬酸、残糖含量、浓度、pH等可能会对得分有影响，这些直观的想法还需进一步检验。
+
+### 根据数据集内已有变量，你是否创建了任何新变量？
+未创建新变量。
+
+### 在已经探究的特性中，是否存在任何异常分布？你是否对数据进行一些操作，如清洁、调整或改变数据的形式？如果是，你为什么会这样做？
+残糖量表现出明显的长尾分布，对其进行了对数转换。因为对数转换可将大范围的取值转换为小范围取值。
+
+
+# 双变量绘图选择
+```{r echo=FALSE}
+myvars <- names(df) %in% c("quality")
+cor(df[!myvars])
+```
+
+```{r echo=FALSE, fig.height=12, fig.width=12, message=FALSE, warning=FALSE}
+ggpairs(df)
+```
+
+从相关矩阵和散点图矩阵输出中，可以看到：
+1、和total.sulfur.dioxide 相关性较高的量有 free.sulfur.dioxide（0.615）、density（0.530） 和 residual.sugar（0.401）、alcohol（-0.449）；
+2、和density 相关性最高的变量有residual.sugar（0.839）、alcohol（-0.78）；
+3、residual.sugar 和 alcohol 有较强的负向关系（-0.450）
+4、pH值与 fixed.acidity 有较强的负向关系（-0.426）
+
+下面将仔细研究一下这些问题。不过首先看一下分类变量 quality 与其他变量的关系：
+
+```{r echo=FALSE}
+ggplot( aes(x = quality, y = alcohol), data= df) +
+  geom_boxplot() +
+  stat_summary(fun.y = mean, geom = "point", shape=4, color="red") +
+  geom_jitter(alpha = 1/10) +
+  geom_smooth(method="lm", aes(group=1)) +
+  labs(x = "quality", y = "alcohol (% by volume)") +
+  ggtitle("Relationship of alcohol and quality")
+```
+
+评分为5的葡萄酒其平均 alcohol含量最低，变异性也相对较小（评分9的葡萄酒其样本数量很少）。从5分向高低两个方向的平均酒精含量都是逐渐增加的，变异性也是逐渐增加的。从整体上看，随着 quality 的增加， alcohol 含量也会增加。
+
+```{r echo=FALSE}
+ggplot(df, aes(x = quality, y = density)) +
+  geom_boxplot() +
+  stat_summary(fun.y = mean, geom = "point", shape = 4, color = "red") +
+  geom_jitter(alpha=1/10) +
+  geom_smooth(method="lm", aes(group=1)) +
+  labs(x = "quality", y = "density (g / cm^3)") +
+  ggtitle("Relationship of quality and density")
+
+```
+
+得分为5的葡萄酒其平均密度最高，除了评分为9的葡萄酒外（评分9的葡萄酒其样本数量很少），其他评分葡萄酒的变异性都差不多。从整体上看，随着 quality 的增加，density 会趋向于减小。
+
+```{r echo=FALSE}
+ggplot(df, aes(x = quality, y = chlorides)) +
+  geom_boxplot() +
+  stat_summary(fun.y = mean, geom = "point", shape = 4, color = "red") +
+  geom_jitter(alpha=1/10) +
+  geom_smooth(method="lm", aes(group=1)) +
+  labs(x = "quality", y = "chlorides (g / dm^3)") +
+  ggtitle("Relationship of chlorides and quality")
+
+```
+
+这两个变量之间存在很弱的负相关。评分高的葡萄酒，chlorides 平均含量稍低一些。另外，评分为5的葡萄酒，其chlorides含量变异性也较大。
+
+
+```{r echo=FALSE}
+ggplot(aes(x = free.sulfur.dioxide, y = total.sulfur.dioxide), data = df) +
+  geom_point() +
+  geom_smooth(method="lm") +
+  labs(x = "free.sulfur.dioxide (mg / dm^3)", y = "total.sulfur.dioxide (mg / dm^3)") +
+  ggtitle("Relationship of total.sulfur.dioxide and free.sulfur.dioxide")
+```
+
+free.sulfur.dioxide 含量越高 total.sulfur.dioxide 的关系也越高，这两者仍然呈现明显的正向关系。这一点容易理解，因为前者正是后者的子集。
+
+```{r echo=FALSE}
+ggplot(aes(x = residual.sugar, y = total.sulfur.dioxide), data = df) +
+  geom_point() +
+  geom_smooth(method="lm") +
+  labs(x = "residual.sugar (g / dm^3)", y = "total.sulfur.dioxide (mg / dm^3)") +
+  ggtitle("Relationship of total.sulfur.dioxide and residual.sugar")
+```
+
+residual.sugar 和 total.sulfur.dioxide 之间有明显的正向关系。
+
+```{r echo=FALSE}
+ggplot(aes(x = alcohol, y = total.sulfur.dioxide), data = df) +
+  geom_point() +
+  geom_smooth(method="lm") +
+  labs(x = "alcohol (% by volume)", y = "total.sulfur.dioxide (mg / dm^3)") +
+  ggtitle("Relationship of total.sulfur.dioxide and alcohol")
+```
+
+alcohol 和 total.sulfur.dioxide 之间有较弱的负向关系。
+
+
+```{r echo=FALSE}
+ggplot(aes(x = residual.sugar, y = density), data = df) +
+  geom_point() +
+  geom_smooth(method="lm") +
+  labs(x = "residual.sugar (g / dm^3)", y = "density (g / cm^3)") +
+  ggtitle("Relationship of density and residual.sugar")
+```
+
+再次地，residual.sugar 和 density 之间存在明显的正向关系。
+
+```{r echo=FALSE}
+ggplot(aes(x = alcohol, y = density), data = df) +
+  geom_point() +
+  geom_smooth(method="lm") +
+  labs(x = "alcohol (% by volume)", y = "density (g / cm^3)") +
+  ggtitle("Relationship of density and alcohol")
+```
+
+alcohol 含量越高，density 越低。这也是容易理解的。酒精密度比水还低，因此酒精会拉低葡萄酒的密度。
+
+```{r echo=FALSE}
+ggplot(aes(x = total.sulfur.dioxide, y = density), data = df) +
+  geom_point() +
+  geom_smooth(method="lm") +
+  labs(x = "total.sulfur.dioxide (mg / dm^3)", y = "density (g / cm^3)") +
+  ggtitle("Relationship of density and total.sulfur.dioxide")
+```
+
+total.sulfur.dioxide 和 density 之间有微弱的正向关系。
+
+```{r echo=FALSE}
+ggplot(aes(x = residual.sugar, y = alcohol), data = df) +
+  geom_point(alpha = 1/10) +
+  geom_smooth(method="lm") +
+  labs(x = "residual.sugar (g / dm^3)", y = "alcohol (% by volume)") +
+  ggtitle("Relationship of alcohol and residual.sugar")
+
+```
+
+residual.sugar 和 alcohol 之间存在负向关系。
+
+```{r echo=FALSE}
+ggplot(aes(x = fixed.acidity, y = pH), data = df) +
+  geom_point() +
+  geom_smooth(method="lm") +
+  labs(x = "fixed.acidity (g / dm^3)", y = "alcohol (% by volume)") +
+  ggtitle("Relationship of pH and fixed.acidity")
+```
+
+fixed.acidity 含量和 pH 值存在负向关系。这容易理解，酸含量的增加一定会导致 pH 值的降低。
+
+
+# 双变量分析
+
+### 探讨你在这部分探究中观察到的一些关系。这些感兴趣的特性与数据集内其他特性有什么区别？
+* 与 quality 相关性较高的变量有：alcohol、density等。
+* 和total.sulfur.dioxide 相关性较高的量有 free.sulfur.dioxide（0.615）、density（0.530） 和 residual.sugar（0.401）、alcohol（-0.449）；
+* 和density 相关性最高的变量有residual.sugar（0.839）、alcohol（-0.78）；
+* residual.sugar 和 alcohol 有较强的负向关系（-0.450）
+* pH值与 fixed.acidity 有较强的负向关系（-0.426）
+
+### 你是否观察到主要特性与其他特性之间的有趣关系？
+* 随着 quality 提高，alcohol 也趋向于增加，两者存在正向关系；
+* 随着 quality 提高，density 趋向于减小，两者存在负向关系。
+
+### 你发现最强的关系是什么？
+我发现最强的关系是 residual.sugar 和 density，两者皮尔逊相关系数为0.839。
+
+
+# 多变量绘图选择
+在双变量研究部分观察到与 quality 与 alcohol、density 相关性较高，而这两个变量与其他变量之间也有相关性，下面以多变量的视角分别研究下这些关系。
+
+## quality & alcohol & density
+
+```{r echo=FALSE, warning=FALSE}
+ggplot(data = df, aes(x = density, y = alcohol, color = quality)) +
+  geom_jitter()+
+  coord_cartesian(xlim = c(0.985,1.005)) +
+  scale_color_brewer(type = "div", palette = "PuOr") +
+  theme_dark() +
+  labs(y = 'density (g / dm^3)',x = 'alcohol (% by volume)') +
+  ggtitle("quality & density & alcohol")
+```
+
+
+从图中可以看出：给定 alcohol，density 越高，quality 也越高。
+
+
+## quality & alcohol & residual.sugar
+```{r echo=FALSE, warning=FALSE}
+ggplot(aes(x = alcohol, y = residual.sugar, color = quality), 
+       data=subset(df, residual.sugar <25)) + 
+  geom_jitter() + 
+  scale_color_brewer(type = "div", palette = "PuOr" ) +
+  theme_dark() +
+  labs(x = 'alcohol (% by volume)',y = 'residual.sugar(g / dm^3)') + 
+  ggtitle("quality & alcohol & residual.sugar") 
+```
+
+从图中可以看出，对给定 alcohol，residual.sugar 越高，quality 也越高。
+
+## quality & density & total.sulfur.dioxide
+```{r echo=FALSE, warning=FALSE}
+ggplot(aes(x = density, y = total.sulfur.dioxide, color = quality), 
+       data=subset(df, density < 1.01)) + 
+  geom_jitter() + 
+  scale_color_brewer(type = "div", palette = "PuOr" ) +
+  theme_dark() +
+  labs(x = 'density (g / cm^3)',y = 'total.sulfur.dioxide (mg / dm^3)') + 
+  ggtitle("quality & density & total.sulfur.dioxide ")
+```
+
+从图中可以看出，当density < 0.993时，total.sulfur.dioxide 越高，quality 也越高；当density >= 0.993 时，total.sulfur.dioxide 越高，quality 越低。
+
+## quality & density & residual.sugar
+```{r echo=FALSE, warning=FALSE}
+ggplot(aes(x = density, y = residual.sugar, color = quality), 
+       data=subset(df, density < 1.01)) + 
+  geom_jitter() + 
+  scale_color_brewer(type = "div", palette = "PuOr" ) +
+  theme_dark() +
+  labs(x = 'density (g / cm^3)', y = 'residual.sugar (g / dm^3)') + 
+  ggtitle("quality & density & residual.sugar ")
+```
+
+从图中可以看出，当 density 一定时，residual.sugar 越高，quality 也越高。
+
+
+# 多变量分析
+
+###  探讨你在这部分探究中观察到的一些关系。通过观察感兴趣的特性，是否存在相互促进的特性？
+从上面的探索中可以看到，alcohol 和 density、residual.sugar，density 和 total.sulfur.dioxide、residual.sugar 之间存在相互促进的特性。
+
+### 这些特性之间是否存在有趣或惊人的联系呢？
+通过上面的探讨，可以发现多个变量间存在以下关系：
+* 给定 alcohol，density 越高，quality 也越高。
+* 给定 alcohol，residual.sugar 越高，quality 也越高。
+* 当density < 0.993时，total.sulfur.dioxide 越高，quality 也越高；当density >= 0.993 时，total.sulfur.dioxide 越高，quality 越低。
+* 给定 density、residual.sugar 越高，quality 也越高。
+
+### 选项：你是否创建过数据集的任何模型？讨论你模型的优缺点。
+暂时没有创建模型。
+
+
+# 定稿图与总结
+
+### 绘图一
+```{r echo=FALSE, Plot_One}
+ggplot(aes(x = quality), data = df) +
+  geom_bar() +
+  ggtitle("Distribution of quality")
+```
+
+### 描述一
+大部分葡萄酒的质量得分集中在5-7，偏高和偏低的得分都比较少，整个得分分布呈现近似正态。
+
+### 绘图二
+```{r echo=FALSE, Plot_Two}
+ggplot( aes(x = quality, y = alcohol), data= df) +
+  geom_boxplot() +
+  stat_summary(fun.y = mean, geom = "point", shape=4, color="red") +
+  geom_jitter(alpha = 1/10) +
+  geom_smooth(method="lm", aes(group=1)) +
+  labs(x = "quality", y = "alcohol (% by volume)") +
+  ggtitle("Relationship of density VS alcohol")
+```
+
+### 描述二
+和变量 quality 相关性最强的变量是 alcohol，从图中看出两者具有正向关系。也就是说，酒精含量高的葡萄酒，其评分也趋向于更高。
+
+### 绘图三
+```{r echo=FALSE, warning=FALSE, Plot_Three}
+ggplot(data = df, aes(x = density, y = alcohol, color = quality)) +
+  geom_jitter()+
+  coord_cartesian(xlim = c(0.985,1.005)) +
+  scale_color_brewer(type = "div", palette = "PuOr") +
+  theme_dark() +
+  labs(y = 'density (g / dm^3)',x = 'alcohol (% by volume)') +
+  ggtitle("quality & density & alcohol")
+```
+
+### 描述三
+对给定 alcohol，density 越高，quality 也越高。这意味着酒精含量一定的情况下，葡萄酒浓度越高（含糖量高），葡萄酒的口感也越好。
+
+
+------
+
+# 反思
+### 分析中的困难
+在多变量分析阶段，一开始我并没有理解其实现，感到手足无措。直到作出第一个多变量图，看出图中所暗示的关系。
+
+### 分析中的成功
+通过课程和项目把握了探索性数据分析的基本框架：通过单变量分析理解数据的分布、异常值等；通过双变量分析研究两个变量之间的关系；通过多变量分析研究多个变量之间的协同变化关系。
+
+### 未来工作的建议
+在这次探索性数据分析中，我并没有建立一个有效的模型去预测感兴趣的变量。其实我更感兴趣的是这个问题。看起来我还需要进一步学习机器学习方法，再回头来完成预测模型。
